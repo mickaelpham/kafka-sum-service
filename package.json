@@ -1,0 +1,17 @@
+{
+  "name": "sum-kafka",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.16.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  }
+}
