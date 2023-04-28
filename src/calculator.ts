@@ -20,33 +20,37 @@ const sum = async (a: number, b: number): Promise<number> => {
   });
 
   await consumer.connect();
-  await consumer.subscribe({ topic: SUM_REPLY_TOPIC, fromBeginning: true });
+  await consumer.subscribe({ topic: SUM_REPLY_TOPIC, fromBeginning: false });
 
   return new Promise<number>((resolve) => {
     console.log('awaiting reply', correlationId);
-    consumer.run({
-      eachMessage: async ({ message }) => {
-        const replyCorrelationId = message.headers?.correlationId?.toString();
-        console.log('got a response', replyCorrelationId);
 
-        if (replyCorrelationId === correlationId) {
-          const { sum } = JSON.parse(message.value?.toString() ?? '{}');
-          resolve(sum);
-        }
-      },
-    });
+    consumer
+      .run({
+        eachMessage: async ({ message }) => {
+          const replyCorrelationId = message.headers?.correlationId?.toString();
+          console.log('got a response', replyCorrelationId);
 
-    console.log('sending message to', SUM_REQUEST_TOPIC);
-    producer.send({
-      topic: SUM_REQUEST_TOPIC,
-      compression: CompressionTypes.None,
-      messages: [
-        {
-          value: JSON.stringify({ a, b }),
-          headers: { replyTo: SUM_REPLY_TOPIC, correlationId },
+          if (replyCorrelationId === correlationId) {
+            const { sum } = JSON.parse(message.value?.toString() ?? '{}');
+            console.log('resolving sum', sum);
+            resolve(sum);
+          }
         },
-      ],
-    });
+      })
+      .then(() => {
+        console.log('sending message to', SUM_REQUEST_TOPIC);
+        producer.send({
+          topic: SUM_REQUEST_TOPIC,
+          compression: CompressionTypes.None,
+          messages: [
+            {
+              value: JSON.stringify({ a, b }),
+              headers: { replyTo: SUM_REPLY_TOPIC, correlationId },
+            },
+          ],
+        });
+      });
   });
 };
 
@@ -67,6 +71,7 @@ const run = async () => {
     // await sleep(1_000);
   }
 
+  console.log('done with the loop');
   await producer.disconnect();
 };
 

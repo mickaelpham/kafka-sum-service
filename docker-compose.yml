@@ -1,10 +1,11 @@
-version: "3"
+version: '3'
 
 services:
   kafka:
     image: bitnami/kafka:latest
     ports:
-      - "9092:9092"
+      - '9092:9092'
     environment:
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
