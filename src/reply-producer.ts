@@ -1,5 +1,6 @@
 import { Kafka, logLevel } from 'kafkajs';
 import replyContainer from './reply-container';
+import { parseHeaders } from './utils';
 
 const TIMEOUT_DURATION = 10_000; // 10 seconds
 
@@ -33,7 +34,14 @@ const run = async () => {
     }),
   ]);
 
-  console.log(responses);
+  for (const response of responses) {
+    if (response.status === 'fulfilled') {
+      const message = response.value;
+      const headers = parseHeaders(message.headers);
+      const value = message.value?.toString();
+      console.log('received back message', headers, value);
+    }
+  }
 
   container
     .stop()

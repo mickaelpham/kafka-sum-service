@@ -13,7 +13,7 @@ export default ({
 }) => {
   const producer = kafka.producer();
   const consumer = kafka.consumer({ groupId });
-  const replies = new Map<string, (value: unknown) => void>();
+  const replies = new Map<string, (value: Message) => void>();
 
   return {
     start: async () => {
@@ -33,8 +33,7 @@ export default ({
             return;
           }
 
-          const value = message.value?.toString();
-          resolve(value);
+          resolve(message);
         },
       });
     },
@@ -43,7 +42,13 @@ export default ({
       await Promise.all([producer.disconnect(), consumer.disconnect()]);
     },
 
-    sendAndReceive: ({ topic, message }: { topic: string; message: Message }) =>
+    sendAndReceive: ({
+      topic,
+      message,
+    }: {
+      topic: string;
+      message: Message;
+    }): Promise<Message> =>
       new Promise((resolve, reject) => {
         const correlationId = ulid();
 
@@ -63,27 +68,5 @@ export default ({
         // send and forget about the message
         producer.send({ topic, messages: [messageWithHeaders] }).catch(reject);
       }),
-
-    // sendAndReceive: async (record: ProducerRecord) => {
-    //   // add replyTo and correlationId headers
-    //   const messagesWithHeaders = record.messages.map((message) => ({
-    //     ...message,
-    //     headers: {
-    //       ...message.headers,
-    //       correlationId: ulid(),
-    //       replyTo: replyTopic,
-    //     },
-    //   }));
-
-    //   // create a promise for each message to resolve
-    //   messagesWithHeaders.forEach((message) => {
-    //     replies.set(
-    //       message.headers.correlationId,
-    //       new Promise<void>((resolve) => {
-    //         resolve();
-    //       }),
-    //     );
-    //   });
-    // },
   };
 };
