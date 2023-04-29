@@ -2,8 +2,6 @@ import { Kafka, logLevel } from 'kafkajs';
 import replyContainer from './reply-container';
 import { parseHeaders } from './utils';
 
-const TIMEOUT_DURATION = 10_000; // 10 seconds
-
 const kafka = new Kafka({
   brokers: ['localhost:9092'],
   clientId: 'some-consumer',

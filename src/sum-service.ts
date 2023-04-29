@@ -1,4 +1,7 @@
-import { CompressionTypes, Kafka, logLevel } from 'kafkajs';
+import { Kafka, logLevel } from 'kafkajs';
+import { parseHeaders } from './utils';
+
+const TIMEOUT_DURATION = 30 * 1_000; // milliseconds
 
 const kafka = new Kafka({
   brokers: ['localhost:9092'],
@@ -6,7 +9,7 @@ const kafka = new Kafka({
   logLevel: logLevel.ERROR,
 });
 
-const SUM_REQUEST_TOPIC = 'sum.request';
+const SUM_REQUEST_TOPIC = 'sum-requests';
 
 const producer = kafka.producer();
 const consumer = kafka.consumer({ groupId: 'sum-service-consumer' });
@@ -14,36 +17,35 @@ const consumer = kafka.consumer({ groupId: 'sum-service-consumer' });
 const run = async () => {
   await producer.connect();
   await consumer.connect();
-  await consumer.subscribe({ topic: SUM_REQUEST_TOPIC, fromBeginning: true });
+  await consumer.subscribe({ topic: SUM_REQUEST_TOPIC, fromBeginning: false });
 
   console.log('running sum service');
 
   await consumer.run({
-    eachMessage: async ({ message }) => {
-      const { headers } = message;
-      if (!headers) {
-        throw new Error('missing headers');
+    eachMessage: async ({ message: { headers, value } }) => {
+      // headers validation
+      const { correlationId, replyTo } = parseHeaders(headers);
+      if (!correlationId) {
+        throw new Error('missing correlationId in headers');
       }
 
-      const { a, b } = JSON.parse(message.value?.toString() ?? '{}');
-      const { replyTo: replyToBuffer, correlationId: correlationIdBuffer } =
-        message.headers;
-
-      if (replyToBuffer === undefined) {
-        throw new Error('replyTo is undefined');
+      if (!replyTo) {
+        throw new Error('missing replyTo in headers');
       }
-      const replyTo = replyToBuffer.toString();
 
-      if (correlationIdBuffer === undefined) {
-        throw new Error('correlationId is undefined');
+      // body validation
+      const { a, b } = JSON.parse(value ? value.toString() : '{}');
+      if (typeof a !== 'number' || Number.isNaN(a)) {
+        throw new Error('a is not a number');
       }
-      const correlationId = correlationIdBuffer.toString();
 
-      console.log('processing message', replyTo, correlationId, a, b);
-
-      if (typeof replyTo !== 'string' || typeof correlationId !== 'string') {
-        throw new Error('invalid replyTo or correlationId');
+      if (typeof b !== 'number' || Number.isNaN(b)) {
+        throw new Error('b is not a number');
       }
+
+      console.log(
+        `processing message [a=${a}, b=${b}, replyTo=${replyTo}, correlationId=${correlationId}]`,
+      );
 
       // actually do the work
       const sum = a + b;
@@ -51,7 +53,6 @@ const run = async () => {
       // reply
       producer.send({
         topic: replyTo,
-        compression: CompressionTypes.None,
         messages: [
           {
             value: JSON.stringify({ sum }),
@@ -61,6 +62,25 @@ const run = async () => {
       });
     },
   });
+
+  // set a timeout to disconnect both producer and consumer
+  setTimeout(() => {
+    console.log('disconnecting producer and consumer');
+
+    producer
+      .disconnect()
+      .then(() => {
+        console.log('disconnected producer');
+      })
+      .catch(console.error);
+
+    consumer
+      .disconnect()
+      .then(() => {
+        console.log('disconnected consumer');
+      })
+      .catch(console.error);
+  }, TIMEOUT_DURATION);
 };
 
 run().catch(console.error);
