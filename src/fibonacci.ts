@@ -10,7 +10,7 @@ const kafka = new Kafka({
   logLevel: logLevel.NOTHING,
 });
 
-const run = async () => {
+const run = async (): Promise<void> => {
   const container = replyContainer({
     kafka,
     groupId: `fibonacci-consumer-${ulid()}`,
@@ -31,7 +31,7 @@ const run = async () => {
     });
 
     const { sum } = JSON.parse(
-      response.value ? response.value.toString() : '{}',
+      response.value !== null ? response.value.toString() : '{}',
     );
     if (typeof sum !== 'number' || Number.isNaN(sum)) {
       throw new Error('invalid sum in response');
@@ -43,7 +43,9 @@ const run = async () => {
 
   container
     .stop()
-    .then(() => console.log('reply container stopped'))
+    .then(() => {
+      console.log('reply container stopped');
+    })
     .catch(console.error);
 };
 

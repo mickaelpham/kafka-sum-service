@@ -12,7 +12,7 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 const consumer = kafka.consumer({ groupId: 'some-consumer' });
 
-const run = async () => {
+const run = async (): Promise<void> => {
   await Promise.all([producer.connect(), consumer.connect()]);
   await consumer.subscribe({ topic: 'sum-requests', fromBeginning: true });
 
@@ -24,11 +24,11 @@ const run = async () => {
 
       // headers validation
       const { correlationId, replyTo } = headers;
-      if (!correlationId) {
+      if (correlationId === undefined) {
         throw new Error('missing correlationId in headers');
       }
 
-      if (!replyTo) {
+      if (replyTo === undefined) {
         throw new Error('missing replyTo in headers');
       }
 

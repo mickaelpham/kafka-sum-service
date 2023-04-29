@@ -16,9 +16,8 @@ const consumer = kafka.consumer({ groupId: 'sum-service-consumer' });
 
 let messagesHandledCount = 0;
 
-const run = async () => {
-  await producer.connect();
-  await consumer.connect();
+const run = async (): Promise<void> => {
+  await Promise.all([producer.connect(), consumer.connect()]);
   await consumer.subscribe({ topic: SUM_REQUEST_TOPIC, fromBeginning: false });
 
   console.log('running sum service');
@@ -29,16 +28,16 @@ const run = async () => {
 
       // headers validation
       const { correlationId, replyTo } = parseHeaders(headers);
-      if (!correlationId) {
+      if (correlationId === undefined) {
         throw new Error('missing correlationId in headers');
       }
 
-      if (!replyTo) {
+      if (replyTo === undefined) {
         throw new Error('missing replyTo in headers');
       }
 
       // body validation
-      const { a, b } = JSON.parse(value ? value.toString() : '{}');
+      const { a, b } = JSON.parse(value !== null ? value.toString() : '{}');
       if (typeof a !== 'number' || Number.isNaN(a)) {
         throw new Error('a is not a number');
       }
@@ -55,15 +54,17 @@ const run = async () => {
       const sum = a + b;
 
       // reply
-      producer.send({
-        topic: replyTo,
-        messages: [
-          {
-            value: JSON.stringify({ sum }),
-            headers: { correlationId },
-          },
-        ],
-      });
+      producer
+        .send({
+          topic: replyTo,
+          messages: [
+            {
+              value: JSON.stringify({ sum }),
+              headers: { correlationId },
+            },
+          ],
+        })
+        .catch(console.error);
     },
   });
 

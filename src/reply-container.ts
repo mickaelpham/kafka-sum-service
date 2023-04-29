@@ -1,6 +1,15 @@
-import { Kafka, Message } from 'kafkajs';
+import { type Kafka, type Message } from 'kafkajs';
 import { ulid } from 'ulid';
 import { parseHeaders } from './utils';
+
+interface ReplyContainer {
+  start: () => Promise<void>;
+  stop: () => Promise<void>;
+  sendAndReceive: (args: {
+    topic: string;
+    message: Message;
+  }) => Promise<Message>;
+}
 
 export default ({
   kafka,
@@ -10,7 +19,7 @@ export default ({
   kafka: Kafka;
   groupId: string;
   replyTopic: string;
-}) => {
+}): ReplyContainer => {
   const producer = kafka.producer();
   const consumer = kafka.consumer({ groupId });
   const replies = new Map<string, (value: Message) => void>();
@@ -22,13 +31,13 @@ export default ({
       await consumer.run({
         eachMessage: async ({ message }) => {
           const { correlationId } = parseHeaders(message.headers);
-          if (!correlationId) {
+          if (correlationId === undefined) {
             console.error('received message without correlationId');
             return;
           }
 
           const resolve = replies.get(correlationId);
-          if (!resolve) {
+          if (resolve === undefined) {
             console.log('message is not for this reply container');
             return;
           }
@@ -42,14 +51,8 @@ export default ({
       await Promise.all([producer.disconnect(), consumer.disconnect()]);
     },
 
-    sendAndReceive: ({
-      topic,
-      message,
-    }: {
-      topic: string;
-      message: Message;
-    }): Promise<Message> =>
-      new Promise((resolve, reject) => {
+    sendAndReceive: async ({ topic, message }) =>
+      await new Promise((resolve, reject) => {
         const correlationId = ulid();
 
         // add correlationId and replyTo headers

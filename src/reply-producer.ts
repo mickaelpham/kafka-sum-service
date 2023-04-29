@@ -8,7 +8,7 @@ const kafka = new Kafka({
   logLevel: logLevel.NOTHING,
 });
 
-const run = async () => {
+const run = async (): Promise<void> => {
   const container = replyContainer({
     kafka,
     groupId: 'reply-consumer',
@@ -43,7 +43,9 @@ const run = async () => {
 
   container
     .stop()
-    .then(() => console.log('reply container stopped'))
+    .then(() => {
+      console.log('reply container stopped');
+    })
     .catch(console.error);
 };
 

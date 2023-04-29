@@ -1,4 +1,4 @@
-import { IHeaders } from 'kafkajs';
+import { type IHeaders } from 'kafkajs';
 
 export const parseHeaders = (
   headers: IHeaders | undefined,
