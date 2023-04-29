@@ -14,6 +14,8 @@ const SUM_REQUEST_TOPIC = 'sum-requests';
 const producer = kafka.producer();
 const consumer = kafka.consumer({ groupId: 'sum-service-consumer' });
 
+let messagesHandledCount = 0;
+
 const run = async () => {
   await producer.connect();
   await consumer.connect();
@@ -23,6 +25,8 @@ const run = async () => {
 
   await consumer.run({
     eachMessage: async ({ message: { headers, value } }) => {
+      messagesHandledCount += 1;
+
       // headers validation
       const { correlationId, replyTo } = parseHeaders(headers);
       if (!correlationId) {
@@ -65,6 +69,7 @@ const run = async () => {
 
   // set a timeout to disconnect both producer and consumer
   setTimeout(() => {
+    console.log(`sum service handled ${messagesHandledCount} messages`);
     console.log('disconnecting producer and consumer');
 
     producer
